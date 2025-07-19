@@ -1,82 +1,59 @@
-import React, { useState, useEffect } from 'react'
-import { Button, Card, Typography, Space, Divider, Badge } from 'antd'
-import { SettingOutlined, InfoCircleOutlined, ReloadOutlined } from '@ant-design/icons'
+// src/popup/App.tsx
+import React, { useState, useEffect } from 'react';
+import { Switch, Button, Typography, Space, Spin, Card } from 'antd';
+import { SettingOutlined } from '@ant-design/icons';
+import { getGlobalSwitch, setGlobalSwitch } from '@/shared/utils/storage';
 
-const { Title, Text } = Typography
+const { Title, Text } = Typography;
 
 const PopupApp: React.FC = () => {
-  const [pageInfo, setPageInfo] = useState<{title: string, url: string} | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  const getPageInfo = async () => {
-    setLoading(true)
-    try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-      if (tab.id) {
-        const response = await chrome.tabs.sendMessage(tab.id, { action: 'getPageInfo' })
-        setPageInfo(response)
-      }
-    } catch (error) {
-      console.error('Error getting page info:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const [enabled, setEnabled] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    getPageInfo()
-  }, [])
+    getGlobalSwitch().then(status => {
+      setEnabled(status);
+      setLoading(false);
+    });
+  }, []);
 
-  const openOptions = () => {
-    chrome.runtime.openOptionsPage()
-  }
+  const handleSwitchChange = (checked: boolean) => {
+    setLoading(true);
+    setEnabled(checked);
+    setGlobalSwitch(checked).finally(() => setLoading(false));
+  };
+
+  const openOptionsPage = () => {
+    chrome.runtime.openOptionsPage();
+  };
 
   return (
-    <div style={{ padding: '16px' }}>
-      <Card>
-        <Title level={4}>Chrome Extension</Title>
-
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <div>
-            <Text strong>当前页面信息:</Text>
-            {pageInfo && (
-              <div style={{ marginTop: '8px' }}>
-                <Text>标题: {pageInfo.title}</Text>
-                <br />
-                <Text>URL: {pageInfo.url}</Text>
-              </div>
-            )}
-          </div>
-
-          <Divider />
-
-          <Space>
-            <Button
-              type="primary"
-              icon={<ReloadOutlined />}
-              loading={loading}
-              onClick={getPageInfo}
-            >
-              刷新信息
-            </Button>
-
-            <Button
-              icon={<SettingOutlined />}
-              onClick={openOptions}
-            >
-              设置
-            </Button>
+    <Card bordered={false} style={{ width: 300 }}>
+      <Space direction="vertical" align="center" style={{ width: '100%' }}>
+        <Title level={4}>RequestCraft</Title>
+        <Spin spinning={loading}>
+          <Space direction="vertical" align="center">
+            <Switch
+              checkedChildren="ON"
+              unCheckedChildren="OFF"
+              checked={enabled}
+              onChange={handleSwitchChange}
+              aria-label="Global enable/disable switch"
+            />
+            <Text type="secondary">{enabled ? '插件已激活' : '插件已关闭'}</Text>
           </Space>
+        </Spin>
+        <Button
+          type="primary"
+          icon={<SettingOutlined />}
+          onClick={openOptionsPage}
+          style={{ marginTop: 20 }}
+        >
+          进入配置中心
+        </Button>
+      </Space>
+    </Card>
+  );
+};
 
-          <Badge count={1} offset={[10, 0]}>
-            <Button icon={<InfoCircleOutlined />}>
-              关于
-            </Button>
-          </Badge>
-        </Space>
-      </Card>
-    </div>
-  )
-}
-
-export default PopupApp
+export default PopupApp;

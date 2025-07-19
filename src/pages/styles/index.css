@@ -1,0 +1,9 @@
+/* index.css */
+
+/* Import Ant Design's core styles.
+   This is often handled in your main application file (e.g., main.tsx or App.tsx)
+   by importing 'antd/dist/reset.css'. If not, you can import it here. */
+@import 'antd/dist/reset.css';
+
+/* Import Tailwind CSS */
+@import "tailwindcss";
