@@ -1,73 +1,86 @@
-// src/components/RuleForm.tsx
-import React, { useEffect, useState } from 'react';
-import { Form, Input, Select, Button, Space } from 'antd';
-import type { Rule } from '@/shared/utils/storage';
-
-const { Option } = Select;
-const { TextArea } = Input;
+import React from 'react';
+import { Form, Input, Select, Switch, Space } from 'antd';
+import type { Rule, RuleType } from '@/shared/utils/types';
+import ProxyForm from './ProxyForm';
 
 interface RuleFormProps {
-  initialValues?: Rule | null;
-  onSubmit: (values: Omit<Rule, 'id' | 'enabled'>) => void;
-  onCancel: () => void;
+  value?: Partial<Rule>;
+  onChange?: (values: Partial<Rule>) => void;
 }
 
-const RuleForm: React.FC<RuleFormProps> = ({ initialValues, onSubmit, onCancel }) => {
-  const [form] = Form.useForm();
-  const [ruleType, setRuleType] = useState(initialValues?.type || 'redirect');
-
-  useEffect(() => {
-    if (initialValues) {
-      form.setFieldsValue(initialValues);
-      setRuleType(initialValues.type);
-    } else {
-      form.resetFields();
-      setRuleType('redirect');
-    }
-  }, [initialValues, form]);
-
-  const handleFinish = (values: any) => {
-    onSubmit(values);
+const RuleForm: React.FC<RuleFormProps> = ({ value, onChange }) => {
+  const handleTypeChange = (type: RuleType) => {
+    onChange?.({ ...value, type });
   };
 
   return (
-    <Form form={form} layout="vertical" onFinish={handleFinish} initialValues={{ type: 'redirect' }}>
-      <Form.Item name="name" label="规则名称" rules={[{ required: true, message: '请输入规则名称' }]}>
-        <Input placeholder="例如：Mock 用户信息接口" />
-      </Form.Item>
-      <Form.Item name="matchUrl" label="匹配 URL (支持通配符*)" rules={[{ required: true, message: '请输入要匹配的URL' }]}>
-        <Input placeholder="例如：*://api.example.com/user/*" />
-      </Form.Item>
-      <Form.Item name="type" label="规则类型" rules={[{ required: true }]}>
-        <Select onChange={setRuleType}>
-          <Option value="redirect">重定向 (Redirect)</Option>
-          <Option value="mock">伪造响应 (Mock)</Option>
-          <Option value="modifyHeaders">修改头 (Modify Headers)</Option>
-        </Select>
+    <Form layout="vertical">
+      <Form.Item label="规则名称" required>
+        <Input
+          value={value?.name}
+          onChange={e => onChange?.({ ...value, name: e.target.value })}
+          placeholder="输入规则名称"
+        />
       </Form.Item>
 
-      {/* 根据规则类型显示不同表单项 */}
-      {ruleType === 'redirect' && (
-        <Form.Item name="redirectUrl" label="重定向至" rules={[{ required: true, type: 'url' }]}>
-          <Input placeholder="例如：http://localhost:3000/mock/user" />
+      <Form.Item label="规则类型" required>
+        <Select
+          value={value?.type}
+          onChange={handleTypeChange}
+          options={[
+            { label: '重定向', value: 'redirect' },
+            { label: 'Mock响应', value: 'mock' },
+            { label: '修改请求头', value: 'modifyHeaders' },
+            { label: '代理', value: 'proxy' }
+          ]}
+        />
+      </Form.Item>
+
+      <Form.Item label="匹配 URL" required>
+        <Input
+          value={value?.matchUrl}
+          onChange={e => onChange?.({ ...value, matchUrl: e.target.value })}
+          placeholder="支持通配符 *，例如: *://api.example.com/*"
+        />
+      </Form.Item>
+
+      {value?.type === 'redirect' && (
+        <Form.Item label="目标 URL" required>
+          <Input
+            value={value.targetUrl}
+            onChange={e => onChange?.({ ...value, targetUrl: e.target.value })}
+            placeholder="输入重定向目标 URL"
+          />
         </Form.Item>
       )}
 
-      {ruleType === 'mock' && (
-        <Form.Item name="mockContent" label="Mock 响应内容 (JSON)" rules={[{ required: true }]}>
-          <TextArea rows={6} placeholder='例如：{ "id": 1, "name": "Mock User" }' />
+      {value?.type === 'mock' && (
+        <Form.Item label="Mock 响应" required>
+          <Input.TextArea
+            value={value.mockResponse}
+            onChange={e => onChange?.({ ...value, mockResponse: e.target.value })}
+            placeholder="输入 JSON 格式的 Mock 数据"
+            rows={4}
+          />
         </Form.Item>
       )}
 
-      {ruleType === 'modifyHeaders' && (
-        <p>（修改头部的UI可以在此扩展，例如使用可增减的表单列表）</p>
-        // Ant Design's Form.List can be used here for dynamic fields
+      {value?.type === 'proxy' && (
+        <Form.Item label="代理配置" required>
+          <ProxyForm
+            value={value.proxyConfig}
+            onChange={proxyConfig => onChange?.({ ...value, proxyConfig })}
+          />
+        </Form.Item>
       )}
 
-      <Form.Item style={{ textAlign: 'right', marginBottom: 0 }}>
+      <Form.Item>
         <Space>
-          <Button onClick={onCancel}>取消</Button>
-          <Button type="primary" htmlType="submit">保存</Button>
+          <span>启用规则：</span>
+          <Switch
+            checked={value?.enabled}
+            onChange={checked => onChange?.({ ...value, enabled: checked })}
+          />
         </Space>
       </Form.Item>
     </Form>

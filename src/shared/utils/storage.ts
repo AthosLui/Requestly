@@ -1,119 +1,65 @@
-// src/common/storage.ts
+import type { Rule } from './types';
 
-// src/common/types/index.ts
-
-/**
- * 定义规则的类型，用于 Select 组件和逻辑判断
- */
-export type RuleType = 'redirect' | 'mock' | 'modifyHeaders';
-
-/**
- * 定义请求头/响应头的键值对结构
- */
-export interface HeaderPair {
-  key: string;
-  value: string;
-  // 可以添加 'enabled' 字段来单独控制每个 header
-}
-
-/**
- * 定义核心的“规则”对象结构
- * 这是我们应用中最重要的数据模型
- */
-export interface Rule {
-  /**
-   * 规则的唯一标识符，使用 UUID 生成
-   */
-  id: string;
-
-  /**
-   * 用户自定义的规则名称，便于识别
-   * @example "Mock 用户信息接口"
-   */
-  name: string;
-
-  /**
-   * 规则匹配的 URL Filter，支持 Chrome 的通配符
-   * @example "*://api.example.com/data/*"
-   */
-  matchUrl: string;
-
-  /**
-   * 规则的类型
-   */
-  type: RuleType;
-
-  /**
-   * 该条规则是否启用
-   */
-  enabled: boolean;
-
-  // --- 以下是根据 RuleType 变化的可选字段 ---
-
-  /**
-   * 当 type 为 'redirect' 时，指定重定向的目标 URL
-   */
-  redirectUrl?: string;
-
-  /**
-   * 当 type 为 'mock' 时，指定要返回的响应体内容 (通常是 JSON 字符串)
-   */
-  mockContent?: string;
-
-  /**
-   * 当 type 为 'modifyHeaders' 时，指定要修改的请求头
-   */
-  requestHeaders?: HeaderPair[];
-
-  /**
-   * 当 type 为 'modifyHeaders' 时，指定要修改的响应头
-   */
-  responseHeaders?: HeaderPair[];
-}
-
-// 使用常量定义存储键，避免硬编码字符串和拼写错误
+// 存储键名常量
 const STORAGE_KEYS = {
-  RULES: 'requestCraftRules',
-  GLOBAL_SWITCH: 'requestCraftGlobalSwitch',
-};
+  RULES: 'rules',
+  GLOBAL_SWITCH: 'globalSwitch'
+} as const;
 
-/**
- * 获取所有规则
- * @returns {Promise<Rule[]>} 返回规则数组，如果不存在则返回空数组
- */
+// 获取规则列表
 export const getRules = async (): Promise<Rule[]> => {
-  const result = await chrome.storage.sync.get(STORAGE_KEYS.RULES);
-  // Array.isArray 检查确保返回的是数组，增强代码健壮性
-  return Array.isArray(result[STORAGE_KEYS.RULES]) ? result[STORAGE_KEYS.RULES] : [];
+  const result = await chrome.storage.local.get(STORAGE_KEYS.RULES);
+  return result[STORAGE_KEYS.RULES] || [];
 };
 
-/**
- * 保存规则数组
- * @param {Rule[]} rules 要保存的完整规则数组
- * @returns {Promise<void>}
- */
+// 保存规则列表
 export const setRules = async (rules: Rule[]): Promise<void> => {
-  await chrome.storage.sync.set({ [STORAGE_KEYS.RULES]: rules });
+  await chrome.storage.local.set({ [STORAGE_KEYS.RULES]: rules });
 };
 
-/**
- * 获取全局总开关的状态
- * @returns {Promise<boolean>} 返回开关状态，如果不存在则默认为 true (首次安装时激活)
- */
+// 获取全局开关状态
 export const getGlobalSwitch = async (): Promise<boolean> => {
-  const result = await chrome.storage.sync.get(STORAGE_KEYS.GLOBAL_SWITCH);
-  if (typeof result[STORAGE_KEYS.GLOBAL_SWITCH] === 'boolean') {
-    return result[STORAGE_KEYS.GLOBAL_SWITCH];
-  }
-  // 默认值为 true
-  return true;
+  const result = await chrome.storage.local.get(STORAGE_KEYS.GLOBAL_SWITCH);
+  return result[STORAGE_KEYS.GLOBAL_SWITCH] ?? false;
 };
 
-/**
- * 设置全局总开关的状态
- * @param {boolean} isEnabled 开关状态
- * @returns {Promise<void>}
- */
-export const setGlobalSwitch = async (isEnabled: boolean): Promise<void> => {
-  await chrome.storage.sync.set({ [STORAGE_KEYS.GLOBAL_SWITCH]: isEnabled });
+// 设置全局开关状态
+export const setGlobalSwitch = async (enabled: boolean): Promise<void> => {
+  await chrome.storage.local.set({ [STORAGE_KEYS.GLOBAL_SWITCH]: enabled });
+};
+
+// 生成唯一ID
+export const generateUUID = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+// 清除所有存储数据
+export const clearStorage = async (): Promise<void> => {
+  await chrome.storage.local.clear();
+};
+
+// 获取单个规则
+export const getRule = async (id: string): Promise<Rule | undefined> => {
+  const rules = await getRules();
+  return rules.find(rule => rule.id === id);
+};
+
+// 删除单个规则
+export const deleteRule = async (id: string): Promise<void> => {
+  const rules = await getRules();
+  await setRules(rules.filter(rule => rule.id !== id));
+};
+
+// 更新单个规则
+export const updateRule = async (rule: Rule): Promise<void> => {
+  const rules = await getRules();
+  const index = rules.findIndex(r => r.id === rule.id);
+  if (index > -1) {
+    rules[index] = rule;
+    await setRules(rules);
+  }
 };
